@@ -1,0 +1,63 @@
+[project]
+name = "pymocks"
+version = "0.1.0"
+description = "Testing utility decorators for mocking functions, variables, and HTTP endpoints"
+readme = "README.md"
+authors = [
+    { name = "Yeison Liscano", email = "yliscano@fluidattacks.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pytest",
+    "aioresponses",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio",
+    "aiohttp",
+    "pyright",
+    "ruff",
+]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+include = ["src", "tests"]
+exclude = [".venv", "build", "dist"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812",  # conflicts with ruff formatter
+    "D203",    # conflicts with D211 (no-blank-line-before-class)
+    "D213",    # conflicts with D212 (multi-line-summary-second-line)
+    "ISC001",  # conflicts with ruff formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",   # assert is fine in tests
+    "D100",   # missing module docstring
+    "D101",   # missing class docstring
+    "D102",   # missing method docstring
+    "D103",   # missing function docstring
+    "D104",   # missing package docstring
+    "ANN",    # type annotations not required in tests
+    "PT011",  # broad pytest.raises is acceptable in tests
+    "E731",   # lambda assignment is fine in tests
+    "B009",   # getattr with constant needed for dynamic module attrs
+    "ARG001", # unused args expected in stub functions for signature tests
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
