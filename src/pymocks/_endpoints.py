@@ -6,7 +6,10 @@ import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from inspect import iscoroutinefunction
-from typing import Literal, overload
+from typing import TYPE_CHECKING, Literal, Self, overload
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 from aioresponses import aioresponses
 
@@ -26,12 +29,41 @@ class MockEndpoint:
 
 
 class _WithEndpoints:
-    """Decorator that mocks HTTP endpoints during a test."""
+    """Decorator and context manager that mocks HTTP endpoints."""
 
-    __slots__ = ("_endpoints",)
+    __slots__ = ("_endpoints", "_mock_ctx")
 
     def __init__(self, endpoints: tuple[MockEndpoint, ...]) -> None:
         self._endpoints = endpoints
+        self._mock_ctx: aioresponses | None = None
+
+    def __enter__(self) -> Self:
+        ctx = aioresponses()
+        mock = ctx.__enter__()
+        self._setup_mocks(mock)
+        self._mock_ctx = ctx
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        if self._mock_ctx is not None:
+            self._mock_ctx.__exit__(exc_type, exc_val, exc_tb)
+            self._mock_ctx = None
+
+    async def __aenter__(self) -> Self:
+        return self.__enter__()
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.__exit__(exc_type, exc_val, exc_tb)
 
     def _setup_mocks(self, mock: aioresponses) -> None:
         """Register all endpoints on the mock context."""

@@ -24,7 +24,7 @@ class TestMockEndpoint:
         assert ep.body is None
 
 
-class TestWithEndpoints:
+class TestWithEndpointsDecorator:
     @pytest.mark.asyncio
     async def test_mocked_get_returns_json(self) -> None:
         payload: dict[str, JsonValue] = {"status": "ok", "data": [1, 2, 3]}
@@ -44,3 +44,22 @@ class TestWithEndpoints:
                 assert json.loads(text) == payload
 
         await inner_test()
+
+
+class TestWithEndpointsContextManager:
+    @pytest.mark.asyncio
+    async def test_async_context_manager_mocks_endpoint(self) -> None:
+        payload: dict[str, JsonValue] = {"status": "ok", "data": [1, 2, 3]}
+        endpoint = MockEndpoint(
+            url="https://api.example.com/health",
+            method="GET",
+            json_response=payload,
+        )
+
+        async with (
+            with_endpoints((endpoint,)),
+            aiohttp.ClientSession() as session,
+            session.get("https://api.example.com/health") as resp,
+        ):
+                text = await resp.text()
+                assert json.loads(text) == payload

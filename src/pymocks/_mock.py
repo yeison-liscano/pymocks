@@ -5,10 +5,11 @@ import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from inspect import isclass, iscoroutinefunction, isfunction
-from types import ModuleType
-from typing import overload
+from types import ModuleType, TracebackType
+from typing import Self, overload
 
 import pytest
+
 
 def _get_object_type_name(obj: object) -> str:
     return type(obj).__name__
@@ -97,12 +98,44 @@ class Mock[T_mocked]:
 
 
 class _WithMock[T_return]:
-    """Decorator that monkeypatches a module attribute during a test."""
+    """Decorator and context manager that monkeypatches a module attribute."""
 
-    __slots__ = ("_mock",)
+    __slots__ = ("_mock", "_monkeypatch")
 
     def __init__(self, mock: Mock[T_return]) -> None:
         self._mock = mock
+        self._monkeypatch: pytest.MonkeyPatch | None = None
+
+    def __enter__(self) -> Self:
+        mp = pytest.MonkeyPatch()
+        mp.setattr(
+            self._mock.module_where_used,
+            self._mock.name,
+            self._mock.new_value,
+        )
+        self._monkeypatch = mp
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        if self._monkeypatch is not None:
+            self._monkeypatch.undo()
+            self._monkeypatch = None
+
+    async def __aenter__(self) -> Self:
+        return self.__enter__()
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.__exit__(exc_type, exc_val, exc_tb)
 
     @overload
     def __call__[**P, T](

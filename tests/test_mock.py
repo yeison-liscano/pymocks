@@ -157,8 +157,8 @@ class TestMockValidation:
         )
 
 
-class TestWithMockSync:
-    def test_monkeypatch_applies_and_reverts(self) -> None:
+class TestWithMockDecorator:
+    def test_sync_monkeypatch_applies_and_reverts(self) -> None:
         def replacement() -> str:
             return "mocked"
 
@@ -175,10 +175,8 @@ class TestWithMockSync:
         inner_test()
         assert getattr(dummy_module, "original_func") is dummy_module.original_func
 
-
-class TestWithMockAsync:
     @pytest.mark.asyncio
-    async def test_monkeypatch_applies_and_reverts(self) -> None:
+    async def test_async_monkeypatch_applies_and_reverts(self) -> None:
         def replacement() -> str:
             return "mocked"
 
@@ -193,4 +191,37 @@ class TestWithMockAsync:
             assert getattr(dummy_module, "original_func") is replacement
 
         await inner_test()
+        assert getattr(dummy_module, "original_func") is dummy_module.original_func
+
+
+class TestWithMockContextManager:
+    def test_sync_context_manager_applies_and_reverts(self) -> None:
+        def replacement() -> str:
+            return "mocked"
+
+        m = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.original_func,
+            new_value=replacement,
+        )
+
+        with with_mock(m):
+            assert getattr(dummy_module, "original_func") is replacement
+
+        assert getattr(dummy_module, "original_func") is dummy_module.original_func
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_applies_and_reverts(self) -> None:
+        def replacement() -> str:
+            return "mocked"
+
+        m = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.original_func,
+            new_value=replacement,
+        )
+
+        async with with_mock(m):
+            assert getattr(dummy_module, "original_func") is replacement
+
         assert getattr(dummy_module, "original_func") is dummy_module.original_func
