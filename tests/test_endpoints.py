@@ -61,5 +61,5 @@ class TestWithEndpointsContextManager:
             aiohttp.ClientSession() as session,
             session.get("https://api.example.com/health") as resp,
         ):
-                text = await resp.text()
-                assert json.loads(text) == payload
+            text = await resp.text()
+            assert json.loads(text) == payload

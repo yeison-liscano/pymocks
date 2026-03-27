@@ -1,14 +1,15 @@
 """HTTP endpoint mocking utilities using aioresponses."""
+
 from __future__ import annotations
 
 import functools
 import json
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from inspect import iscoroutinefunction
 from typing import TYPE_CHECKING, Literal, Self, overload
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
     from types import TracebackType
 
 from aioresponses import aioresponses

@@ -15,6 +15,9 @@ assert callable(pymocks.with_endpoints), "with_endpoints should be callable"
 
 # Mock and MockEndpoint should be dataclasses.
 assert hasattr(pymocks.Mock, "__dataclass_fields__"), "Mock should be a dataclass"
-assert hasattr(pymocks.MockEndpoint, "__dataclass_fields__"), "MockEndpoint should be a dataclass"
+assert hasattr(
+    pymocks.MockEndpoint,
+    "__dataclass_fields__",
+), "MockEndpoint should be a dataclass"
 
-print("smoke test passed")
+print("smoke test passed")  # noqa: T201

@@ -14,10 +14,12 @@ import pytest
 def _get_object_type_name(obj: object) -> str:
     return type(obj).__name__
 
+
 def _get_object_name(obj: object) -> str:
-    if name:= getattr(obj, "__name__", None):
+    if name := getattr(obj, "__name__", None):
         return name
     return _get_object_type_name(obj)
+
 
 def _get_variable_name(module: ModuleType, var: object) -> str:
     """Find the attribute name in a module that refers to the given object."""
@@ -48,7 +50,6 @@ class Mock[T_mocked]:
         elif isclass(self.current_value):
             self._validate_class_replacement()
 
-
     def _validate_signatures(self) -> None:
         """Verify that current_value and new_value have identical signatures."""
         try:
@@ -58,10 +59,7 @@ class Mock[T_mocked]:
             return
 
         if current_sig != new_sig:
-            msg = (
-                f"Signature mismatch: "
-                f"{current_sig} != {new_sig}"
-            )
+            msg = f"Signature mismatch: {current_sig} != {new_sig}"
             raise TypeError(msg)
 
     def _validate_types(self) -> None:
@@ -70,10 +68,7 @@ class Mock[T_mocked]:
         new_type = type(self.new_value)
 
         if current_type is not new_type:
-            msg = (
-                f"Type mismatch: "
-                f"{current_type.__name__} != {new_type.__name__}"
-            )
+            msg = f"Type mismatch: {current_type.__name__} != {new_type.__name__}"
             raise TypeError(msg)
 
     def _validate_var_existence_on_module(self) -> None:
@@ -85,9 +80,9 @@ class Mock[T_mocked]:
         if not issubclass(self.new_value, self.current_value):  # pyright: ignore[reportArgumentType]
             msg = (
                 f"New class {_get_object_type_name(self.new_value)} is not a "
-                f"subclass of {_get_object_type_name(self.current_value)}")
+                f"subclass of {_get_object_type_name(self.current_value)}"
+            )
             raise TypeError(msg)
-
 
     @property
     def name(self) -> str:
