@@ -1,8 +1,8 @@
 # pymocks
 
-Testing utility decorators for mocking functions, variables, and HTTP endpoints in Python.
+Testing utility decorators and context managers for mocking functions, variables, and HTTP endpoints in Python.
 
-Works with both synchronous and asynchronous test functions. Sync/async is detected automatically.
+Works with both synchronous and asynchronous test functions. Sync/async is detected automatically. All mocking utilities can be used as decorators or context managers.
 
 ## Installation
 
@@ -20,7 +20,7 @@ uv add pymocks
 
 ### Mocking Functions and Variables
 
-Use `Mock` with `@with_mock` to monkeypatch a module attribute for the duration of a test:
+Use `Mock` with `with_mock` to monkeypatch a module attribute for the duration of a test. Works as a decorator or context manager:
 
 ```python
 import my_module
@@ -58,13 +58,29 @@ def test_with_mocked_variable():
     assert my_module.API_URL == "https://mock.example.com"
 ```
 
-The same decorator works for async tests:
+The same works for async tests:
 
 ```python
 @with_mock(mock)
 async def test_async_with_mock():
     result = my_module.some_function(1, "a")
     assert result is True
+```
+
+Or use it as a context manager for more flexible scoping:
+
+```python
+def test_with_context_manager():
+    with with_mock(mock):
+        result = my_module.some_function(1, "a")
+        assert result is True
+    # mock is reverted here
+
+
+async def test_async_with_context_manager():
+    async with with_mock(mock):
+        result = my_module.some_function(1, "a")
+        assert result is True
 ```
 
 ### Mocking Classes
@@ -140,7 +156,7 @@ Mock(
 
 ### Mocking HTTP Endpoints
 
-Use `MockEndpoint` with `@with_endpoints` to mock HTTP calls via `aioresponses`:
+Use `MockEndpoint` with `with_endpoints` to mock HTTP calls via `aioresponses`. Works as a decorator or context manager:
 
 ```python
 import aiohttp
@@ -160,12 +176,22 @@ endpoints = (
 )
 
 
+# As a decorator
 @with_endpoints(endpoints)
 async def test_api_calls():
     async with aiohttp.ClientSession() as session:
         async with session.get("https://api.example.com/users") as resp:
             data = await resp.json()
             assert len(data["users"]) == 1
+
+
+# As a context manager
+async def test_api_calls_ctx():
+    async with with_endpoints(endpoints):
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api.example.com/users") as resp:
+                data = await resp.json()
+                assert len(data["users"]) == 1
 ```
 
 ## API Reference
@@ -191,14 +217,25 @@ A frozen dataclass defining an HTTP endpoint mock.
 | `json_response` | `dict[str, JsonValue] \| None`            | JSON response body (optional) |
 | `body`          | `str \| None`                             | Raw string body (optional)    |
 
-### Decorators
+### `with_mock(mock)` / `with_endpoints(endpoints)`
 
-| Decorator                    | Description                                          |
-|------------------------------|------------------------------------------------------|
-| `@with_mock(mock)`           | Monkeypatches a module attribute during a test       |
-| `@with_endpoints(endpoints)` | Mocks HTTP endpoints during a test via aioresponses  |
+Both can be used as **decorators** or **context managers** (sync and async):
 
-Both decorators auto-detect sync/async and wrap accordingly.
+```python
+# Decorator
+@with_mock(mock)
+def test_decorated(): ...
+
+# Sync context manager
+with with_mock(mock):
+    ...
+
+# Async context manager
+async with with_mock(mock):
+    ...
+```
+
+When used as decorators, sync/async is detected automatically.
 
 ## Requirements
 
