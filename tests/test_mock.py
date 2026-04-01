@@ -193,6 +193,61 @@ class TestWithMockDecorator:
         await inner_test()
         assert getattr(dummy_module, "original_func") is dummy_module.original_func
 
+    def test_sync_multiple_mocks(self) -> None:
+        def replacement_func() -> str:
+            return "mocked"
+
+        def replacement_another() -> str:
+            return "mocked_another"
+
+        m1 = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.original_func,
+            new_value=replacement_func,
+        )
+        m2 = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.another_func,
+            new_value=replacement_another,
+        )
+
+        @with_mock(m1, m2)
+        def inner_test() -> None:
+            assert getattr(dummy_module, "original_func") is replacement_func
+            assert getattr(dummy_module, "another_func") is replacement_another
+
+        inner_test()
+        assert getattr(dummy_module, "original_func") is dummy_module.original_func
+        assert getattr(dummy_module, "another_func") is dummy_module.another_func
+
+    @pytest.mark.asyncio
+    async def test_async_multiple_mocks(self) -> None:
+        def replacement_func() -> str:
+            return "mocked"
+
+        def replacement_another() -> str:
+            return "mocked_another"
+
+        m1 = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.original_func,
+            new_value=replacement_func,
+        )
+        m2 = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.another_func,
+            new_value=replacement_another,
+        )
+
+        @with_mock(m1, m2)
+        async def inner_test() -> None:
+            assert getattr(dummy_module, "original_func") is replacement_func
+            assert getattr(dummy_module, "another_func") is replacement_another
+
+        await inner_test()
+        assert getattr(dummy_module, "original_func") is dummy_module.original_func
+        assert getattr(dummy_module, "another_func") is dummy_module.another_func
+
 
 class TestWithMockContextManager:
     def test_sync_context_manager_applies_and_reverts(self) -> None:
@@ -225,3 +280,54 @@ class TestWithMockContextManager:
             assert getattr(dummy_module, "original_func") is replacement
 
         assert getattr(dummy_module, "original_func") is dummy_module.original_func
+
+    def test_sync_context_manager_multiple_mocks(self) -> None:
+        def replacement_func() -> str:
+            return "mocked"
+
+        def replacement_another() -> str:
+            return "mocked_another"
+
+        m1 = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.original_func,
+            new_value=replacement_func,
+        )
+        m2 = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.another_func,
+            new_value=replacement_another,
+        )
+
+        with with_mock(m1, m2):
+            assert getattr(dummy_module, "original_func") is replacement_func
+            assert getattr(dummy_module, "another_func") is replacement_another
+
+        assert getattr(dummy_module, "original_func") is dummy_module.original_func
+        assert getattr(dummy_module, "another_func") is dummy_module.another_func
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_multiple_mocks(self) -> None:
+        def replacement_func() -> str:
+            return "mocked"
+
+        def replacement_another() -> str:
+            return "mocked_another"
+
+        m1 = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.original_func,
+            new_value=replacement_func,
+        )
+        m2 = Mock(
+            module_where_used=dummy_module,
+            current_value=dummy_module.another_func,
+            new_value=replacement_another,
+        )
+
+        async with with_mock(m1, m2):
+            assert getattr(dummy_module, "original_func") is replacement_func
+            assert getattr(dummy_module, "another_func") is replacement_another
+
+        assert getattr(dummy_module, "original_func") is dummy_module.original_func
+        assert getattr(dummy_module, "another_func") is dummy_module.another_func

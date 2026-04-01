@@ -20,7 +20,7 @@ uv add pymocks
 
 ### Mocking Functions and Variables
 
-Use `Mock` with `with_mock` to monkeypatch a module attribute for the duration of a test. Works as a decorator or context manager:
+Use `Mock` with `with_mock` to monkeypatch module attributes for the duration of a test. Accepts one or more `Mock` objects. Works as a decorator or context manager:
 
 ```python
 import my_module
@@ -58,6 +58,16 @@ def test_with_mocked_variable():
     assert my_module.API_URL == "https://mock.example.com"
 ```
 
+Pass multiple mocks to apply them all at once — they are all reverted together when the scope exits:
+
+```python
+@with_mock(mock, var_mock)
+def test_with_multiple_mocks():
+    result = my_module.some_function(1, "a")
+    assert result is True
+    assert my_module.API_URL == "https://mock.example.com"
+```
+
 The same works for async tests:
 
 ```python
@@ -71,10 +81,10 @@ Or use it as a context manager for more flexible scoping:
 
 ```python
 def test_with_context_manager():
-    with with_mock(mock):
+    with with_mock(mock, var_mock):
         result = my_module.some_function(1, "a")
         assert result is True
-    # mock is reverted here
+    # mocks are reverted here
 
 
 async def test_async_with_context_manager():
@@ -217,17 +227,21 @@ A frozen dataclass defining an HTTP endpoint mock.
 | `json_response` | `dict[str, JsonValue] \| None`            | JSON response body (optional) |
 | `body`          | `str \| None`                             | Raw string body (optional)    |
 
-### `with_mock(mock)` / `with_endpoints(endpoints)`
+### `with_mock(*mocks)` / `with_endpoints(endpoints)`
 
 Both can be used as **decorators** or **context managers** (sync and async):
 
 ```python
-# Decorator
+# Decorator — single mock
 @with_mock(mock)
 def test_decorated(): ...
 
+# Decorator — multiple mocks
+@with_mock(mock, var_mock)
+def test_decorated(): ...
+
 # Sync context manager
-with with_mock(mock):
+with with_mock(mock, var_mock):
     ...
 
 # Async context manager

@@ -1,6 +1,6 @@
 [project]
 name = "py-mocks"
-version = "0.2.1"
+version = "0.3.0"
 description = "Testing utility decorators for mocking functions, variables, and HTTP endpoints"
 readme = "README.md"
 authors = [{ name = "Yeison Liscano" }]

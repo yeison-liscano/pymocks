@@ -11,6 +11,10 @@ def original_func() -> str:
     return "original"
 
 
+def another_func() -> str:
+    return "another"
+
+
 def func_two_params(x: int, y: str) -> bool:
     return bool(x) and bool(y)
 

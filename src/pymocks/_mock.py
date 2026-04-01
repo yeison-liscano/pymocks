@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from inspect import isclass, iscoroutinefunction, isfunction
 from types import ModuleType, TracebackType
-from typing import Self, overload
+from typing import Any, Self, overload
 
 import pytest
 
@@ -92,22 +92,23 @@ class Mock[T_mocked]:
         return _get_variable_name(self.module_where_used, self.current_value)
 
 
-class _WithMock[T_return]:
-    """Decorator and context manager that monkeypatches a module attribute."""
+class _WithMock:
+    """Decorator and context manager that monkeypatches module attributes."""
 
-    __slots__ = ("_mock", "_monkeypatch")
+    __slots__ = ("_mocks", "_monkeypatch")
 
-    def __init__(self, mock: Mock[T_return]) -> None:
-        self._mock = mock
+    def __init__(self, *mocks: Mock[Any]) -> None:
+        self._mocks = mocks
         self._monkeypatch: pytest.MonkeyPatch | None = None
 
     def __enter__(self) -> Self:
         mp = pytest.MonkeyPatch()
-        mp.setattr(
-            self._mock.module_where_used,
-            self._mock.name,
-            self._mock.new_value,
-        )
+        for mock in self._mocks:
+            mp.setattr(
+                mock.module_where_used,
+                mock.name,
+                mock.new_value,
+            )
         self._monkeypatch = mp
         return self
 
@@ -149,7 +150,7 @@ class _WithMock[T_return]:
         func: Callable[P, T],
     ) -> Callable[P, T]:
         """Apply monkeypatch around the decorated function."""
-        mock = self._mock
+        mocks = self._mocks
 
         if iscoroutinefunction(func):
 
@@ -159,11 +160,12 @@ class _WithMock[T_return]:
                 **kwargs: P.kwargs,
             ) -> T:
                 with pytest.MonkeyPatch().context() as monkeypatch:
-                    monkeypatch.setattr(
-                        mock.module_where_used,
-                        mock.name,
-                        mock.new_value,
-                    )
+                    for mock in mocks:
+                        monkeypatch.setattr(
+                            mock.module_where_used,
+                            mock.name,
+                            mock.new_value,
+                        )
                     return await func(*args, **kwargs)  # pyright: ignore[reportGeneralTypeIssues]
 
             return async_wrapper  # pyright: ignore[reportReturnType]
@@ -171,16 +173,17 @@ class _WithMock[T_return]:
         @functools.wraps(func)
         def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             with pytest.MonkeyPatch().context() as monkeypatch:
-                monkeypatch.setattr(
-                    mock.module_where_used,
-                    mock.name,
-                    mock.new_value,
-                )
+                for mock in mocks:
+                    monkeypatch.setattr(
+                        mock.module_where_used,
+                        mock.name,
+                        mock.new_value,
+                    )
                 return func(*args, **kwargs)
 
         return sync_wrapper
 
 
-def with_mock[T_return](mock: Mock[T_return]) -> _WithMock[T_return]:
-    """Monkeypatch a module attribute for the duration of a test."""
-    return _WithMock(mock)
+def with_mock(*mocks: Mock[Any]) -> _WithMock:
+    """Monkeypatch module attributes for the duration of a test."""
+    return _WithMock(*mocks)
