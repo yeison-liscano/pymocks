@@ -1,16 +1,27 @@
 [project]
 name = "py-mocks"
-version = "0.2.0"
+version = "0.2.1"
 description = "Testing utility decorators for mocking functions, variables, and HTTP endpoints"
 readme = "README.md"
-authors = [
-    { name = "Yeison Liscano", email = "yliscano@fluidattacks.com" }
+authors = [{ name = "Yeison Liscano" }]
+maintainers = [{ name = "Yeison Liscano" }]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14"
 ]
+keywords = ["testing"]
 requires-python = ">=3.12"
 dependencies = [
-    "pytest",
-    "aioresponses",
+    "pytest>=9.0.2,<10.0.0",
+    "aioresponses>=0.7.8,<0.8.0"
 ]
+
+[project.urls]
+Homepage = "https://github.com/yeison-liscano/pymocks"
+Issues = "https://github.com/yeison-liscano/pymocks/issues"
 
 [build-system]
 requires = ["hatchling"]
