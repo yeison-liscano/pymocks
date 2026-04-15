@@ -6,17 +6,28 @@ import functools
 import json
 from dataclasses import dataclass
 from inspect import iscoroutinefunction
-from typing import TYPE_CHECKING, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
     from types import TracebackType
 
 from aioresponses import aioresponses
+from typing_extensions import TypedDict
+from yarl import URL
 
 type JsonValue = (
     str | int | float | bool | None | dict[str, JsonValue] | list[JsonValue]
 )
+
+
+class RequestData(TypedDict, total=False):
+    """Typed representation of the request data passed to assert_request."""
+
+    headers: dict[str, str]
+    params: dict[str, str]
+    data: Any
+    json: dict[str, JsonValue]
 
 
 @dataclass(frozen=True)
@@ -27,6 +38,7 @@ class MockEndpoint:
     method: Literal["GET", "POST", "PUT", "DELETE"]
     json_response: dict[str, JsonValue] | None = None
     body: str | None = None
+    assert_request: Callable[[URL, RequestData], None] | None = None
 
 
 class _WithEndpoints:
@@ -66,6 +78,15 @@ class _WithEndpoints:
     ) -> None:
         self.__exit__(exc_type, exc_val, exc_tb)
 
+    @staticmethod
+    def _make_callback(
+        assertion_fn: Callable[[URL, RequestData], None],
+    ) -> Callable[..., None]:
+        def callback(url: URL, **kwargs: Any) -> None:
+            assertion_fn(url, RequestData(**kwargs))  # type: ignore[misc]
+
+        return callback
+
     def _setup_mocks(self, mock: aioresponses) -> None:
         """Register all endpoints on the mock context."""
         for endpoint in self._endpoints:
@@ -78,6 +99,11 @@ class _WithEndpoints:
                 endpoint.url,
                 endpoint.method,
                 body=response_body,
+                callback=(
+                    self._make_callback(endpoint.assert_request)
+                    if endpoint.assert_request is not None
+                    else None
+                ),
             )
 
     @overload

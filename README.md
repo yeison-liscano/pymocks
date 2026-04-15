@@ -204,6 +204,47 @@ async def test_api_calls_ctx():
                 assert len(data["users"]) == 1
 ```
 
+### Asserting Request Data
+
+Use `assert_request` on a `MockEndpoint` to inspect the URL, headers, body, and params sent by the code under test. The callback receives a `yarl.URL` and a typed `RequestData` dict:
+
+```python
+from yarl import URL
+from pymocks import MockEndpoint, RequestData, with_endpoints
+
+def check_request(url: URL, data: RequestData) -> None:
+    assert data["headers"]["Authorization"] == "Bearer token123"
+    assert data["json"]["name"] == "alice"
+
+endpoint = MockEndpoint(
+    url="https://api.example.com/users",
+    method="POST",
+    json_response={"id": 1},
+    assert_request=check_request,
+)
+
+
+@with_endpoints((endpoint,))
+async def test_post_sends_correct_data():
+    async with aiohttp.ClientSession() as session:
+        await session.post(
+            "https://api.example.com/users",
+            json={"name": "alice"},
+            headers={"Authorization": "Bearer token123"},
+        )
+```
+
+`RequestData` is a `TypedDict` with the following optional keys:
+
+| Key       | Type                     | Description              |
+|-----------|--------------------------|--------------------------|
+| `headers` | `dict[str, str]`         | Request headers          |
+| `params`  | `dict[str, str]`         | Query parameters         |
+| `data`    | `Any`                    | Raw request body         |
+| `json`    | `dict[str, JsonValue]`   | JSON request body        |
+
+When `assert_request` is `None` (the default), the endpoint returns the configured response without any assertion callback.
+
 ## API Reference
 
 ### `Mock[T_mocked]`
@@ -220,12 +261,24 @@ A dataclass that defines a monkeypatch specification. Validates compatibility on
 
 A frozen dataclass defining an HTTP endpoint mock.
 
-| Field           | Type                                      | Description                   |
-|-----------------|-------------------------------------------|-------------------------------|
-| `url`           | `str`                                     | The URL to mock               |
-| `method`        | `Literal["GET", "POST", "PUT", "DELETE"]` | HTTP method                   |
-| `json_response` | `dict[str, JsonValue] \| None`            | JSON response body (optional) |
-| `body`          | `str \| None`                             | Raw string body (optional)    |
+| Field             | Type                                            | Description                              |
+|-------------------|-------------------------------------------------|------------------------------------------|
+| `url`             | `str`                                           | The URL to mock                          |
+| `method`          | `Literal["GET", "POST", "PUT", "DELETE"]`       | HTTP method                              |
+| `json_response`   | `dict[str, JsonValue] \| None`                  | JSON response body (optional)            |
+| `body`            | `str \| None`                                   | Raw string body (optional)               |
+| `assert_request`  | `Callable[[URL, RequestData], None] \| None`    | Request assertion callback (optional)    |
+
+### `RequestData`
+
+A `TypedDict(total=False)` representing the data passed in a request. All keys are optional since they depend on what the caller provides.
+
+| Key       | Type                     | Description              |
+|-----------|--------------------------|--------------------------|
+| `headers` | `dict[str, str]`         | Request headers          |
+| `params`  | `dict[str, str]`         | Query parameters         |
+| `data`    | `Any`                    | Raw request body         |
+| `json`    | `dict[str, JsonValue]`   | JSON request body        |
 
 ### `with_mock(*mocks)` / `with_endpoints(endpoints)`
 

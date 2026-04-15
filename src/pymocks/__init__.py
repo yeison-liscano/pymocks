@@ -3,6 +3,7 @@
 from pymocks._endpoints import (
     JsonValue,
     MockEndpoint,
+    RequestData,
     with_endpoints,
 )
 from pymocks._mock import (
@@ -14,6 +15,7 @@ __all__ = [
     "JsonValue",
     "Mock",
     "MockEndpoint",
+    "RequestData",
     "with_endpoints",
     "with_mock",
 ]
