@@ -6,15 +6,16 @@ import functools
 import json
 from dataclasses import dataclass
 from inspect import iscoroutinefunction
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, Unpack, overload
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
     from types import TracebackType
 
+    from yarl import URL
+
 from aioresponses import aioresponses
 from typing_extensions import TypedDict
-from yarl import URL
 
 type JsonValue = (
     str | int | float | bool | None | dict[str, JsonValue] | list[JsonValue]
@@ -82,8 +83,8 @@ class _WithEndpoints:
     def _make_callback(
         assertion_fn: Callable[[URL, RequestData], None],
     ) -> Callable[..., None]:
-        def callback(url: URL, **kwargs: Any) -> None:
-            assertion_fn(url, RequestData(**kwargs))  # type: ignore[misc]
+        def callback(url: URL, **kwargs: Unpack[RequestData]) -> None:
+            assertion_fn(url, RequestData(**kwargs))
 
         return callback
 

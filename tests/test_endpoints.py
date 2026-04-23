@@ -76,8 +76,8 @@ class TestAssertRequest:
         assert len(captured) == 1
         url, data = captured[0]
         assert str(url) == "https://api.example.com/users"
-        assert data["json"] == {"name": "alice"}
-        assert data["headers"]["Authorization"] == "Bearer tok"
+        assert data.get("json") == {"name": "alice"}
+        assert (data.get("headers") or {}).get("Authorization") == "Bearer tok"
 
     @pytest.mark.asyncio
     async def test_assert_request_none_by_default(self) -> None:
