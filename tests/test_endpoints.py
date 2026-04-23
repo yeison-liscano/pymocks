@@ -1,17 +1,21 @@
-"""Tests for MockEndpoint and with_endpoints decorator."""
+"""Tests for MockAiohttpEndpoint and with_aiohttp_endpoints decorator."""
 
 import json
 
 import aiohttp
 import pytest
-from yarl import URL
 
-from pymocks import JsonValue, MockEndpoint, RequestData, with_endpoints
+from pymocks import (
+    JsonValue,
+    MockAiohttpEndpoint,
+    MockedAiohttpRequest,
+    with_aiohttp_endpoints,
+)
 
 
-class TestMockEndpoint:
+class TestMockAiohttpEndpoint:
     def test_frozen_dataclass(self) -> None:
-        ep = MockEndpoint(
+        ep = MockAiohttpEndpoint(
             url="https://example.com/api",
             method="GET",
             json_response={"ok": True},
@@ -20,22 +24,23 @@ class TestMockEndpoint:
             ep.url = "https://other.com"  # type: ignore[misc]
 
     def test_defaults(self) -> None:
-        ep = MockEndpoint(url="https://example.com", method="POST")
+        ep = MockAiohttpEndpoint(url="https://example.com", method="POST")
         assert ep.json_response is None
         assert ep.body is None
+        assert ep.assert_request is None
 
 
-class TestWithEndpointsDecorator:
+class TestWithAiohttpEndpointsDecorator:
     @pytest.mark.asyncio
     async def test_mocked_get_returns_json(self) -> None:
         payload: dict[str, JsonValue] = {"status": "ok", "data": [1, 2, 3]}
-        endpoint = MockEndpoint(
+        endpoint = MockAiohttpEndpoint(
             url="https://api.example.com/health",
             method="GET",
             json_response=payload,
         )
 
-        @with_endpoints((endpoint,))
+        @with_aiohttp_endpoints((endpoint,))
         async def inner_test() -> None:
             async with (
                 aiohttp.ClientSession() as session,
@@ -49,21 +54,21 @@ class TestWithEndpointsDecorator:
 
 class TestAssertRequest:
     @pytest.mark.asyncio
-    async def test_assert_request_receives_headers_and_json(self) -> None:
+    async def test_assert_request_receives_request_object(self) -> None:
         payload: dict[str, JsonValue] = {"id": 1}
-        captured: list[tuple[URL, RequestData]] = []
+        captured: list[MockedAiohttpRequest] = []
 
-        def on_request(url: URL, data: RequestData) -> None:
-            captured.append((url, data))
+        def on_request(request: MockedAiohttpRequest) -> None:
+            captured.append(request)
 
-        endpoint = MockEndpoint(
+        endpoint = MockAiohttpEndpoint(
             url="https://api.example.com/users",
             method="POST",
             json_response=payload,
             assert_request=on_request,
         )
 
-        @with_endpoints((endpoint,))
+        @with_aiohttp_endpoints((endpoint,))
         async def inner_test() -> None:
             async with aiohttp.ClientSession() as session:
                 await session.post(
@@ -74,21 +79,21 @@ class TestAssertRequest:
 
         await inner_test()
         assert len(captured) == 1
-        url, data = captured[0]
-        assert str(url) == "https://api.example.com/users"
-        assert data.get("json") == {"name": "alice"}
-        assert (data.get("headers") or {}).get("Authorization") == "Bearer tok"
+        request = captured[0]
+        assert str(request.url) == "https://api.example.com/users"
+        assert request.json == {"name": "alice"}
+        assert (request.headers or {}).get("Authorization") == "Bearer tok"
 
     @pytest.mark.asyncio
     async def test_assert_request_none_by_default(self) -> None:
-        endpoint = MockEndpoint(
+        endpoint = MockAiohttpEndpoint(
             url="https://api.example.com/health",
             method="GET",
             json_response={"ok": True},
         )
         assert endpoint.assert_request is None
 
-        @with_endpoints((endpoint,))
+        @with_aiohttp_endpoints((endpoint,))
         async def inner_test() -> None:
             async with (
                 aiohttp.ClientSession() as session,
@@ -99,18 +104,18 @@ class TestAssertRequest:
         await inner_test()
 
 
-class TestWithEndpointsContextManager:
+class TestWithAiohttpEndpointsContextManager:
     @pytest.mark.asyncio
     async def test_async_context_manager_mocks_endpoint(self) -> None:
         payload: dict[str, JsonValue] = {"status": "ok", "data": [1, 2, 3]}
-        endpoint = MockEndpoint(
+        endpoint = MockAiohttpEndpoint(
             url="https://api.example.com/health",
             method="GET",
             json_response=payload,
         )
 
         async with (
-            with_endpoints((endpoint,)),
+            with_aiohttp_endpoints((endpoint,)),
             aiohttp.ClientSession() as session,
             session.get("https://api.example.com/health") as resp,
         ):

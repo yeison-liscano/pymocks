@@ -2,9 +2,9 @@
 
 from pymocks._endpoints import (
     JsonValue,
-    MockEndpoint,
-    RequestData,
-    with_endpoints,
+    MockAiohttpEndpoint,
+    MockedAiohttpRequest,
+    with_aiohttp_endpoints,
 )
 from pymocks._httpx_endpoints import (
     MockHttpxEndpoint,
@@ -18,10 +18,10 @@ from pymocks._mock import (
 __all__ = [
     "JsonValue",
     "Mock",
-    "MockEndpoint",
+    "MockAiohttpEndpoint",
     "MockHttpxEndpoint",
-    "RequestData",
-    "with_endpoints",
+    "MockedAiohttpRequest",
+    "with_aiohttp_endpoints",
     "with_httpx_endpoints",
     "with_mock",
 ]
