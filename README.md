@@ -166,19 +166,19 @@ Mock(
 
 ### Mocking HTTP Endpoints
 
-Use `MockEndpoint` with `with_endpoints` to mock HTTP calls via `aioresponses`. Works as a decorator or context manager:
+Use `MockAiohttpEndpoint` with `with_aiohttp_endpoints` to mock HTTP calls via `aioresponses`. Works as a decorator or context manager:
 
 ```python
 import aiohttp
-from pymocks import MockEndpoint, with_endpoints
+from pymocks import MockAiohttpEndpoint, with_aiohttp_endpoints
 
 endpoints = (
-    MockEndpoint(
+    MockAiohttpEndpoint(
         url="https://api.example.com/users",
         method="GET",
         json_response={"users": [{"id": 1, "name": "Alice"}]},
     ),
-    MockEndpoint(
+    MockAiohttpEndpoint(
         url="https://api.example.com/users",
         method="POST",
         json_response={"id": 2, "name": "Bob"},
@@ -187,7 +187,7 @@ endpoints = (
 
 
 # As a decorator
-@with_endpoints(endpoints)
+@with_aiohttp_endpoints(endpoints)
 async def test_api_calls():
     async with aiohttp.ClientSession() as session:
         async with session.get("https://api.example.com/users") as resp:
@@ -197,7 +197,7 @@ async def test_api_calls():
 
 # As a context manager
 async def test_api_calls_ctx():
-    async with with_endpoints(endpoints):
+    async with with_aiohttp_endpoints(endpoints):
         async with aiohttp.ClientSession() as session:
             async with session.get("https://api.example.com/users") as resp:
                 data = await resp.json()
@@ -206,17 +206,16 @@ async def test_api_calls_ctx():
 
 ### Asserting Request Data
 
-Use `assert_request` on a `MockEndpoint` to inspect the URL, headers, body, and params sent by the code under test. The callback receives a `yarl.URL` and a typed `RequestData` dict:
+Use `assert_request` on a `MockAiohttpEndpoint` to inspect the URL, headers, body, and params sent by the code under test. The callback receives a single `MockedAiohttpRequest` — mirroring the `assert_request(request)` shape used by the httpx backend:
 
 ```python
-from yarl import URL
-from pymocks import MockEndpoint, RequestData, with_endpoints
+from pymocks import MockAiohttpEndpoint, MockedAiohttpRequest, with_aiohttp_endpoints
 
-def check_request(url: URL, data: RequestData) -> None:
-    assert data["headers"]["Authorization"] == "Bearer token123"
-    assert data["json"]["name"] == "alice"
+def check_request(request: MockedAiohttpRequest) -> None:
+    assert (request.headers or {})["Authorization"] == "Bearer token123"
+    assert request.json == {"name": "alice"}
 
-endpoint = MockEndpoint(
+endpoint = MockAiohttpEndpoint(
     url="https://api.example.com/users",
     method="POST",
     json_response={"id": 1},
@@ -224,7 +223,7 @@ endpoint = MockEndpoint(
 )
 
 
-@with_endpoints((endpoint,))
+@with_aiohttp_endpoints((endpoint,))
 async def test_post_sends_correct_data():
     async with aiohttp.ClientSession() as session:
         await session.post(
@@ -234,14 +233,15 @@ async def test_post_sends_correct_data():
         )
 ```
 
-`RequestData` is a `TypedDict` with the following optional keys:
+`MockedAiohttpRequest` is a frozen dataclass with the following fields:
 
-| Key       | Type                     | Description              |
-|-----------|--------------------------|--------------------------|
-| `headers` | `dict[str, str]`         | Request headers          |
-| `params`  | `dict[str, str]`         | Query parameters         |
-| `data`    | `Any`                    | Raw request body         |
-| `json`    | `dict[str, JsonValue]`   | JSON request body        |
+| Field     | Type                           | Description              |
+|-----------|--------------------------------|--------------------------|
+| `url`     | `yarl.URL`                     | Request URL              |
+| `headers` | `dict[str, str] \| None`       | Request headers          |
+| `params`  | `dict[str, str] \| None`       | Query parameters         |
+| `data`    | `Any`                          | Raw request body         |
+| `json`    | `dict[str, JsonValue] \| None` | JSON request body        |
 
 When `assert_request` is `None` (the default), the endpoint returns the configured response without any assertion callback.
 
@@ -332,7 +332,7 @@ A dataclass that defines a monkeypatch specification. Validates compatibility on
 | `current_value`    | `T_mocked`   | The current value (used to find its name)    |
 | `new_value`        | `T_mocked`   | The replacement value during the test        |
 
-### `MockEndpoint`
+### `MockAiohttpEndpoint`
 
 A frozen dataclass defining an HTTP endpoint mock for `aiohttp` (via `aioresponses`).
 
@@ -342,7 +342,7 @@ A frozen dataclass defining an HTTP endpoint mock for `aiohttp` (via `aiorespons
 | `method`          | `Literal["GET", "POST", "PUT", "DELETE"]`       | HTTP method                              |
 | `json_response`   | `dict[str, JsonValue] \| None`                  | JSON response body (optional)            |
 | `body`            | `str \| None`                                   | Raw string body (optional)               |
-| `assert_request`  | `Callable[[URL, RequestData], None] \| None`    | Request assertion callback (optional)    |
+| `assert_request`  | `Callable[[MockedAiohttpRequest], None] \| None` | Request assertion callback (optional)   |
 
 ### `MockHttpxEndpoint`
 
@@ -357,18 +357,19 @@ A frozen dataclass defining an HTTP endpoint mock for `httpx` (via `pytest-httpx
 | `status_code`     | `int`                                                                         | HTTP status code (defaults to `200`)          |
 | `assert_request`  | `Callable[[httpx.Request], None] \| None`                                     | Request assertion callback (optional)         |
 
-### `RequestData`
+### `MockedAiohttpRequest`
 
-A `TypedDict(total=False)` representing the data passed in a request. All keys are optional since they depend on what the caller provides.
+A frozen dataclass passed to `MockAiohttpEndpoint.assert_request`. Wraps the per-request data aioresponses supplies into a single argument, matching the `assert_request(request)` shape of the httpx backend.
 
-| Key       | Type                     | Description              |
-|-----------|--------------------------|--------------------------|
-| `headers` | `dict[str, str]`         | Request headers          |
-| `params`  | `dict[str, str]`         | Query parameters         |
-| `data`    | `Any`                    | Raw request body         |
-| `json`    | `dict[str, JsonValue]`   | JSON request body        |
+| Field     | Type                            | Description              |
+|-----------|---------------------------------|--------------------------|
+| `url`     | `yarl.URL`                      | Request URL              |
+| `headers` | `dict[str, str] \| None`        | Request headers          |
+| `params`  | `dict[str, str] \| None`        | Query parameters         |
+| `data`    | `Any`                           | Raw request body         |
+| `json`    | `dict[str, JsonValue] \| None`  | JSON request body        |
 
-### `with_mock(*mocks)` / `with_endpoints(endpoints)` / `with_httpx_endpoints(endpoints)`
+### `with_mock(*mocks)` / `with_aiohttp_endpoints(endpoints)` / `with_httpx_endpoints(endpoints)`
 
 All three can be used as **decorators** or **context managers** (sync and async):
 

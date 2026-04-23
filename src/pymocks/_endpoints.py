@@ -16,21 +16,21 @@ from typing import (
     overload,
 )
 
+from aioresponses import aioresponses
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
     from types import TracebackType
 
     from yarl import URL
 
-from aioresponses import aioresponses
-
 type JsonValue = (
     str | int | float | bool | None | dict[str, JsonValue] | list[JsonValue]
 )
 
 
-class RequestData(TypedDict, total=False):
-    """Typed representation of the request data passed to assert_request."""
+class _AioresponsesCallbackKwargs(TypedDict, total=False):
+    """Subset of kwargs aioresponses forwards to our callback."""
 
     headers: dict[str, str]
     params: dict[str, str]
@@ -39,22 +39,38 @@ class RequestData(TypedDict, total=False):
 
 
 @dataclass(frozen=True)
-class MockEndpoint:
+class MockedAiohttpRequest:
+    """Single request-object passed to MockAiohttpEndpoint.assert_request.
+
+    Wraps the (url, **kwargs) pair that aioresponses hands to its callback
+    into one object, so assert_request takes the same single-argument shape
+    as MockHttpxEndpoint.assert_request.
+    """
+
+    url: URL
+    headers: dict[str, str] | None = None
+    params: dict[str, str] | None = None
+    data: Any = None
+    json: dict[str, JsonValue] | None = None
+
+
+@dataclass(frozen=True)
+class MockAiohttpEndpoint:
     """Define an HTTP endpoint mock specification."""
 
     url: str
     method: Literal["GET", "POST", "PUT", "DELETE"]
     json_response: dict[str, JsonValue] | None = None
     body: str | None = None
-    assert_request: Callable[[URL, RequestData], None] | None = None
+    assert_request: Callable[[MockedAiohttpRequest], None] | None = None
 
 
-class _WithEndpoints:
+class _WithAiohttpEndpoints:
     """Decorator and context manager that mocks HTTP endpoints."""
 
     __slots__ = ("_endpoints", "_mock_ctx")
 
-    def __init__(self, endpoints: tuple[MockEndpoint, ...]) -> None:
+    def __init__(self, endpoints: tuple[MockAiohttpEndpoint, ...]) -> None:
         self._endpoints = endpoints
         self._mock_ctx: aioresponses | None = None
 
@@ -88,10 +104,21 @@ class _WithEndpoints:
 
     @staticmethod
     def _make_callback(
-        assertion_fn: Callable[[URL, RequestData], None],
+        assertion_fn: Callable[[MockedAiohttpRequest], None],
     ) -> Callable[..., None]:
-        def callback(url: URL, **kwargs: Unpack[RequestData]) -> None:
-            assertion_fn(url, RequestData(**kwargs))
+        def callback(
+            url: URL,
+            **kwargs: Unpack[_AioresponsesCallbackKwargs],
+        ) -> None:
+            assertion_fn(
+                MockedAiohttpRequest(
+                    url=url,
+                    headers=kwargs.get("headers"),
+                    params=kwargs.get("params"),
+                    data=kwargs.get("data"),
+                    json=kwargs.get("json"),
+                ),
+            )
 
         return callback
 
@@ -153,8 +180,8 @@ class _WithEndpoints:
         return sync_wrapper
 
 
-def with_endpoints(
-    endpoints: tuple[MockEndpoint, ...],
-) -> _WithEndpoints:
+def with_aiohttp_endpoints(
+    endpoints: tuple[MockAiohttpEndpoint, ...],
+) -> _WithAiohttpEndpoints:
     """Mock HTTP endpoints for the duration of a test."""
-    return _WithEndpoints(endpoints)
+    return _WithAiohttpEndpoints(endpoints)

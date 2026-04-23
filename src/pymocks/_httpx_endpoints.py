@@ -2,7 +2,7 @@
 
 Reuses pytest_httpx's HTTPXMock matching engine but drives it as a decorator
 and context manager rather than a pytest fixture, so it composes with the
-existing with_endpoints style. The transport monkeypatch mirrors what
+existing with_aiohttp_endpoints style. The transport monkeypatch mirrors what
 pytest_httpx.httpx_mock installs via pytest's monkeypatch fixture.
 """
 
