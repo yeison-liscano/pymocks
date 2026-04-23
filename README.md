@@ -245,6 +245,81 @@ async def test_post_sends_correct_data():
 
 When `assert_request` is `None` (the default), the endpoint returns the configured response without any assertion callback.
 
+### Mocking httpx Endpoints
+
+Use `MockHttpxEndpoint` with `with_httpx_endpoints` to mock `httpx` calls (both `httpx.Client` and `httpx.AsyncClient`) via `pytest-httpx`. Works as a decorator or context manager, sync or async:
+
+```python
+import httpx
+from pymocks import MockHttpxEndpoint, with_httpx_endpoints
+
+endpoints = (
+    MockHttpxEndpoint(
+        url="https://api.example.com/users",
+        method="GET",
+        json_response={"users": [{"id": 1, "name": "Alice"}]},
+    ),
+    MockHttpxEndpoint(
+        url="https://api.example.com/users",
+        method="POST",
+        json_response={"id": 2, "name": "Bob"},
+        status_code=201,
+    ),
+)
+
+
+# Sync decorator
+@with_httpx_endpoints(endpoints)
+def test_api_calls():
+    with httpx.Client() as client:
+        data = client.get("https://api.example.com/users").json()
+        assert len(data["users"]) == 1
+
+
+# Async context manager
+async def test_api_calls_ctx():
+    async with (
+        with_httpx_endpoints(endpoints),
+        httpx.AsyncClient() as client,
+    ):
+        response = await client.post(
+            "https://api.example.com/users", json={"name": "Bob"},
+        )
+        assert response.status_code == 201
+```
+
+Supported methods: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, `OPTIONS`.
+
+The `assert_request` callback for an httpx endpoint receives the raw `httpx.Request`, so you can read headers, URL, and body directly:
+
+```python
+import httpx
+from pymocks import MockHttpxEndpoint, with_httpx_endpoints
+
+def check_request(request: httpx.Request) -> None:
+    assert request.headers["Authorization"] == "Bearer token123"
+    assert request.read() == b'{"name":"alice"}'
+
+endpoint = MockHttpxEndpoint(
+    url="https://api.example.com/users",
+    method="POST",
+    json_response={"id": 1},
+    assert_request=check_request,
+)
+
+
+@with_httpx_endpoints((endpoint,))
+def test_post_sends_correct_data():
+    with httpx.Client() as client:
+        client.post(
+            "https://api.example.com/users",
+            json={"name": "alice"},
+            headers={"Authorization": "Bearer token123"},
+        )
+```
+
+Every registered endpoint must be called at least once or the block raises an `AssertionError` on exit — this matches `pytest-httpx`'s default assertion behavior.
+
 ## API Reference
 
 ### `Mock[T_mocked]`
@@ -259,7 +334,7 @@ A dataclass that defines a monkeypatch specification. Validates compatibility on
 
 ### `MockEndpoint`
 
-A frozen dataclass defining an HTTP endpoint mock.
+A frozen dataclass defining an HTTP endpoint mock for `aiohttp` (via `aioresponses`).
 
 | Field             | Type                                            | Description                              |
 |-------------------|-------------------------------------------------|------------------------------------------|
@@ -268,6 +343,19 @@ A frozen dataclass defining an HTTP endpoint mock.
 | `json_response`   | `dict[str, JsonValue] \| None`                  | JSON response body (optional)            |
 | `body`            | `str \| None`                                   | Raw string body (optional)               |
 | `assert_request`  | `Callable[[URL, RequestData], None] \| None`    | Request assertion callback (optional)    |
+
+### `MockHttpxEndpoint`
+
+A frozen dataclass defining an HTTP endpoint mock for `httpx` (via `pytest-httpx`).
+
+| Field             | Type                                                                          | Description                                   |
+|-------------------|-------------------------------------------------------------------------------|-----------------------------------------------|
+| `url`             | `str`                                                                         | The URL to mock                               |
+| `method`          | `Literal["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]`         | HTTP method                                   |
+| `json_response`   | `dict[str, JsonValue] \| None`                                                | JSON response body (optional)                 |
+| `body`            | `str \| None`                                                                 | Raw string body (optional)                    |
+| `status_code`     | `int`                                                                         | HTTP status code (defaults to `200`)          |
+| `assert_request`  | `Callable[[httpx.Request], None] \| None`                                     | Request assertion callback (optional)         |
 
 ### `RequestData`
 
@@ -280,9 +368,9 @@ A `TypedDict(total=False)` representing the data passed in a request. All keys a
 | `data`    | `Any`                    | Raw request body         |
 | `json`    | `dict[str, JsonValue]`   | JSON request body        |
 
-### `with_mock(*mocks)` / `with_endpoints(endpoints)`
+### `with_mock(*mocks)` / `with_endpoints(endpoints)` / `with_httpx_endpoints(endpoints)`
 
-Both can be used as **decorators** or **context managers** (sync and async):
+All three can be used as **decorators** or **context managers** (sync and async):
 
 ```python
 # Decorator — single mock
@@ -309,6 +397,7 @@ When used as decorators, sync/async is detected automatically.
 - Python >= 3.12
 - pytest
 - aioresponses
+- pytest-httpx (for httpx endpoint mocking)
 
 ## License
 
