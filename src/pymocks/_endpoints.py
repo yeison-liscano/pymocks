@@ -6,7 +6,15 @@ import functools
 import json
 from dataclasses import dataclass
 from inspect import iscoroutinefunction
-from typing import TYPE_CHECKING, Any, Literal, Self, Unpack, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Self,
+    TypedDict,
+    Unpack,
+    overload,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -15,7 +23,6 @@ if TYPE_CHECKING:
     from yarl import URL
 
 from aioresponses import aioresponses
-from typing_extensions import TypedDict
 
 type JsonValue = (
     str | int | float | bool | None | dict[str, JsonValue] | list[JsonValue]
