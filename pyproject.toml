@@ -16,7 +16,8 @@ keywords = ["testing"]
 requires-python = ">=3.12"
 dependencies = [
     "pytest>=9.0.2,<10.0.0",
-    "aioresponses>=0.7.8,<0.8.0"
+    "aioresponses>=0.7.8,<0.8.0",
+    "pytest-httpx>=0.36.2,<0.37.0"
 ]
 
 [project.urls]
@@ -34,6 +35,7 @@ packages = ["src/pymocks"]
 dev = [
     "pytest-asyncio",
     "aiohttp",
+    "httpx",
     "pyright",
     "ruff",
 ]
